@@ -346,7 +346,6 @@ static nfdresult_t AllocPathSet( IShellItemArray *shellItems, nfdpathset_t *path
     return NFD_OKAY;
 }
 
-
 static nfdresult_t SetDefaultPath( IFileDialog *dialog, const char *defaultPath )
 {
     if ( !defaultPath || strlen(defaultPath) == 0 )
@@ -381,12 +380,54 @@ static nfdresult_t SetDefaultPath( IFileDialog *dialog, const char *defaultPath 
     return NFD_OKAY;
 }
 
-/* public */
 
+static nfdresult_t SetDefaultFilename( IFileDialog *dialog, const char *defaultFilename )
+{
+    if ( !defaultFilename || strlen(defaultFilename) == 0 )
+        return NFD_OKAY;
+
+    wchar_t *defaultFilenameW = {0};
+    CopyNFDCharToWChar( defaultFilename, &defaultFilenameW );
+
+    dialog->SetFileName( defaultFilenameW );
+
+    NFDi_Free( defaultFilenameW );
+    
+    return NFD_OKAY;
+}
+
+static nfdresult_t SetTitle( IFileDialog *dialog, const char *title )
+{
+    if ( !title || strlen(title) == 0 )
+        return NFD_OKAY;
+
+    wchar_t *titleW = {0};
+    CopyNFDCharToWChar( title, &titleW );
+
+    dialog->SetTitle( titleW );
+
+    NFDi_Free( titleW );
+    
+    return NFD_OKAY;
+}
+
+/* public */
 
 nfdresult_t NFD_OpenDialog( const nfdchar_t *filterList,
                             const nfdchar_t *defaultPath,
                             nfdchar_t **outPath )
+{
+    nfd_OpenDialogExt extInfo;
+    memset(&extInfo, 0, sizeof(extInfo));
+
+    extInfo.filterList  = filterList;
+    extInfo.defaultPath = defaultPath;
+
+    return NFD_OpenDialogExt(&extInfo, outPath);
+}
+
+nfdresult_t NFD_OpenDialogExt( const nfd_OpenDialogExt * extInfo,
+                               nfdchar_t **outPath )
 {
     nfdresult_t nfdResult = NFD_ERROR;
 
@@ -411,16 +452,28 @@ nfdresult_t NFD_OpenDialog( const nfdchar_t *filterList,
     }
 
     // Build the filter list
-    if ( !AddFiltersToDialog( fileOpenDialog, filterList ) )
+    if ( !AddFiltersToDialog( fileOpenDialog, extInfo->filterList ) )
     {
         goto end;
     }
 
     // Set the default path
-    if ( !SetDefaultPath( fileOpenDialog, defaultPath ) )
+    if ( !SetDefaultPath( fileOpenDialog, extInfo->defaultPath ) )
     {
         goto end;
     }    
+
+    // Set the default filename
+    if ( !SetDefaultFilename( fileOpenDialog, extInfo->defaultFilename ) )
+    {
+        goto end;
+    }
+
+    // Set the title
+    if ( !SetTitle( fileOpenDialog, extInfo->title ) )
+    {
+        goto end;
+    }
 
     // Show the dialog.
     result = fileOpenDialog->Show(NULL);
@@ -568,9 +621,22 @@ end:
     return nfdResult;
 }
 
-nfdresult_t NFD_SaveDialog( const nfdchar_t *filterList,
-                            const nfdchar_t *defaultPath,
-                            nfdchar_t **outPath )
+nfdresult_t NFD_SaveDialog(const nfdchar_t *filterList,
+                           const nfdchar_t *defaultPath,
+                           nfdchar_t **outPath )
+{
+    nfd_SaveDialogExt extInfo;
+    memset(&extInfo, 0, sizeof(extInfo));
+
+    extInfo.filterList  = filterList;
+    extInfo.defaultPath = defaultPath;
+
+    return NFD_SaveDialogExt(&extInfo, outPath);
+}
+
+
+nfdresult_t NFD_SaveDialogExt( const nfd_SaveDialogExt * extInfo,
+                               nfdchar_t **outPath )
 {
     nfdresult_t nfdResult = NFD_ERROR;
 
@@ -595,13 +661,25 @@ nfdresult_t NFD_SaveDialog( const nfdchar_t *filterList,
     }
 
     // Build the filter list
-    if ( !AddFiltersToDialog( fileSaveDialog, filterList ) )
+    if ( !AddFiltersToDialog( fileSaveDialog, extInfo->filterList ) )
     {
         goto end;
     }
 
     // Set the default path
-    if ( !SetDefaultPath( fileSaveDialog, defaultPath ) )
+    if ( !SetDefaultPath( fileSaveDialog, extInfo->defaultPath ) )
+    {
+        goto end;
+    }
+
+    // Set the default filename
+    if ( !SetDefaultFilename( fileSaveDialog, extInfo->defaultFilename ) )
+    {
+        goto end;
+    }
+
+    // Set the title
+    if ( !SetTitle( fileSaveDialog, extInfo->title ) )
     {
         goto end;
     }

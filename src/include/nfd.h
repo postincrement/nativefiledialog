@@ -32,6 +32,14 @@ typedef enum {
     NFD_CANCEL       /* user pressed cancel */
 }nfdresult_t;
     
+typedef struct {
+    const nfdchar_t * filterList;
+    const nfdchar_t * defaultPath;
+    const nfdchar_t * defaultFilename;
+    const nfdchar_t * title;
+}nfd_SaveDialogExt;
+
+#define nfd_OpenDialogExt nfd_SaveDialogExt
 
 /* nfd_<targetplatform>.c */
 
@@ -39,6 +47,9 @@ typedef enum {
 nfdresult_t NFD_OpenDialog( const nfdchar_t *filterList,
                             const nfdchar_t *defaultPath,
                             nfdchar_t **outPath );
+
+nfdresult_t NFD_OpenDialogExt( const nfd_OpenDialogExt * extInfo,
+                               nfdchar_t **outPath );
 
 /* multiple file open dialog */    
 nfdresult_t NFD_OpenDialogMultiple( const nfdchar_t *filterList,
@@ -50,6 +61,8 @@ nfdresult_t NFD_SaveDialog( const nfdchar_t *filterList,
                             const nfdchar_t *defaultPath,
                             nfdchar_t **outPath );
 
+nfdresult_t NFD_SaveDialogExt( const nfd_SaveDialogExt * extInfo, 
+                               nfdchar_t **outPath );
 
 /* select folder dialog */
 nfdresult_t NFD_PickFolder( const nfdchar_t *defaultPath,
