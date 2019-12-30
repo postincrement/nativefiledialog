@@ -105,6 +105,14 @@ static void SetDefaultPath( GtkWidget *dialog, const char *defaultPath )
     gtk_file_chooser_set_current_folder( GTK_FILE_CHOOSER(dialog), defaultPath );
 }
 
+static void SetDefaultFilename( GtkWidget *dialog, const char *defaultFilename )
+{
+    if ( !defaultFilename || strlen(defaultFilename) == 0 )
+        return;
+
+  gtk_file_chooser_set_current_name (GTK_FILE_CHOOSER(dialog), defaultFilename);
+} 
+
 static nfdresult_t AllocPathSet( GSList *fileList, nfdpathset_t *pathSet )
 {
     size_t bufSize = 0;
@@ -118,7 +126,7 @@ static nfdresult_t AllocPathSet( GSList *fileList, nfdpathset_t *pathSet )
     pathSet->count = (size_t)g_slist_length( fileList );
     assert( pathSet->count > 0 );
 
-    pathSet->indices = NFDi_Malloc( sizeof(size_t)*pathSet->count );
+    pathSet->indices = (size_t *)NFDi_Malloc( sizeof(size_t)*pathSet->count );
     if ( !pathSet->indices )
     {
         return NFD_ERROR;
@@ -131,7 +139,7 @@ static nfdresult_t AllocPathSet( GSList *fileList, nfdpathset_t *pathSet )
         bufSize += strlen( (const gchar*)node->data ) + 1;
     }
 
-    pathSet->buf = NFDi_Malloc( sizeof(nfdchar_t) * bufSize );
+    pathSet->buf = (nfdchar_t *)NFDi_Malloc( sizeof(nfdchar_t) * bufSize );
 
     /* fill buf */
     p_buf = pathSet->buf;
@@ -168,7 +176,19 @@ static void WaitForCleanup(void)
 nfdresult_t NFD_OpenDialog( const nfdchar_t *filterList,
                             const nfdchar_t *defaultPath,
                             nfdchar_t **outPath )
-{    
+{
+    nfd_OpenDialogExt extInfo;
+    memset(&extInfo, 0, sizeof(extInfo));
+
+    extInfo.filterList  = filterList;
+    extInfo.defaultPath = defaultPath;
+
+    return NFD_OpenDialogExt(&extInfo, outPath);
+}
+
+nfdresult_t NFD_OpenDialogExt( const nfd_OpenDialogExt * extInfo,
+                               nfdchar_t **outPath )
+{
     GtkWidget *dialog;
     nfdresult_t result;
 
@@ -178,7 +198,7 @@ nfdresult_t NFD_OpenDialog( const nfdchar_t *filterList,
         return NFD_ERROR;
     }
 
-    dialog = gtk_file_chooser_dialog_new( "Open File",
+    dialog = gtk_file_chooser_dialog_new( (extInfo->title && strlen(extInfo->title)) ? extInfo->title : "Open File",
                                           NULL,
                                           GTK_FILE_CHOOSER_ACTION_OPEN,
                                           "_Cancel", GTK_RESPONSE_CANCEL,
@@ -186,10 +206,13 @@ nfdresult_t NFD_OpenDialog( const nfdchar_t *filterList,
                                           NULL );
 
     /* Build the filter list */
-    AddFiltersToDialog(dialog, filterList);
+    AddFiltersToDialog(dialog, extInfo->filterList);
 
     /* Set the default path */
-    SetDefaultPath(dialog, defaultPath);
+    SetDefaultPath(dialog, extInfo->defaultPath);
+
+    /* Set default filename */
+    SetDefaultFilename(dialog, extInfo->defaultPath);
 
     result = NFD_CANCEL;
     if ( gtk_dialog_run( GTK_DIALOG(dialog) ) == GTK_RESPONSE_ACCEPT )
@@ -200,7 +223,7 @@ nfdresult_t NFD_OpenDialog( const nfdchar_t *filterList,
 
         {
             size_t len = strlen(filename);
-            *outPath = NFDi_Malloc( len + 1 );
+            *outPath = (nfdchar_t *)NFDi_Malloc( len + 1 );
             memcpy( *outPath, filename, len + 1 );
             if ( !*outPath )
             {
@@ -269,9 +292,22 @@ nfdresult_t NFD_OpenDialogMultiple( const nfdchar_t *filterList,
     return result;
 }
 
-nfdresult_t NFD_SaveDialog( const nfdchar_t *filterList,
-                            const nfdchar_t *defaultPath,
-                            nfdchar_t **outPath )
+nfdresult_t NFD_SaveDialog(const nfdchar_t *filterList,
+                           const nfdchar_t *defaultPath,
+                           nfdchar_t **outPath )
+{
+    nfd_SaveDialogExt extInfo;
+    memset(&extInfo, 0, sizeof(extInfo));
+
+    extInfo.filterList  = filterList;
+    extInfo.defaultPath = defaultPath;
+
+    return NFD_SaveDialogExt(&extInfo, outPath);
+}
+
+
+nfdresult_t NFD_SaveDialogExt( const nfd_SaveDialogExt * extInfo,
+                               nfdchar_t **outPath )
 {
     GtkWidget *dialog;
     nfdresult_t result;
@@ -282,7 +318,7 @@ nfdresult_t NFD_SaveDialog( const nfdchar_t *filterList,
         return NFD_ERROR;
     }
 
-    dialog = gtk_file_chooser_dialog_new( "Save File",
+    dialog = gtk_file_chooser_dialog_new( (extInfo->title && strlen(extInfo->title)) ? extInfo->title : "Save File",
                                           NULL,
                                           GTK_FILE_CHOOSER_ACTION_SAVE,
                                           "_Cancel", GTK_RESPONSE_CANCEL,
@@ -291,10 +327,13 @@ nfdresult_t NFD_SaveDialog( const nfdchar_t *filterList,
     gtk_file_chooser_set_do_overwrite_confirmation( GTK_FILE_CHOOSER(dialog), TRUE );
 
     /* Build the filter list */    
-    AddFiltersToDialog(dialog, filterList);
+    AddFiltersToDialog(dialog, extInfo->filterList);
 
     /* Set the default path */
-    SetDefaultPath(dialog, defaultPath);
+    SetDefaultPath(dialog, extInfo->defaultPath);
+
+    /* Set default filename */
+    SetDefaultFilename(dialog, extInfo->defaultFilename);
     
     result = NFD_CANCEL;    
     if ( gtk_dialog_run( GTK_DIALOG(dialog) ) == GTK_RESPONSE_ACCEPT )
@@ -304,7 +343,7 @@ nfdresult_t NFD_SaveDialog( const nfdchar_t *filterList,
         
         {
             size_t len = strlen(filename);
-            *outPath = NFDi_Malloc( len + 1 );
+            *outPath = (nfdchar_t *)NFDi_Malloc( len + 1 );
             memcpy( *outPath, filename, len + 1 );
             if ( !*outPath )
             {
@@ -357,7 +396,7 @@ nfdresult_t NFD_PickFolder(const nfdchar_t *defaultPath,
         
         {
             size_t len = strlen(filename);
-            *outPath = NFDi_Malloc( len + 1 );
+            *outPath = (nfdchar_t *)NFDi_Malloc( len + 1 );
             memcpy( *outPath, filename, len + 1 );
             if ( !*outPath )
             {
